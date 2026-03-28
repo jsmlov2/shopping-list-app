@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쇼핑 리스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 28px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input {
+            flex: 1;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .add-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .list {
+            list-style: none;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            gap: 12px;
+            transition: all 0.3s;
+        }
+        .list-item:hover {
+            background: #e9ecef;
+        }
+        .list-item.completed {
+            opacity: 0.6;
+        }
+        .list-item.completed .item-text {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .checkbox.checked {
+            background: #667eea;
+        }
+        .checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .item-text {
+            flex: 1;
+            font-size: 16px;
+            color: #333;
+            word-break: break-word;
+        }
+        .delete-btn {
+            background: #ff6b6b;
+            color: white;
+            padding: 8px 14px;
+            font-size: 14px;
+            border-radius: 8px;
+        }
+        .delete-btn:hover {
+            background: #ee5a5a;
+        }
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+            font-size: 16px;
+        }
+        .item-count {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 쇼핑 리스트</h1>
+        <div class="input-group">
+            <input type="text" id="itemInput" placeholder="추가할 물품을 입력하세요..." autocomplete="off">
+            <button class="add-btn" onclick="addItem()">추가</button>
+        </div>
+        <ul class="list" id="shoppingList"></ul>
+        <div class="item-count" id="itemCount"></div>
+    </div>
+
+    <script>
+        let items = JSON.parse(localStorage.getItem('shoppingList')) || [];
+
+        function saveItems() {
+            localStorage.setItem('shoppingList', JSON.stringify(items));
+        }
+
+        function render() {
+            const list = document.getElementById('shoppingList');
+            const countEl = document.getElementById('itemCount');
+
+            if (items.length === 0) {
+                list.innerHTML = '<div class="empty-state">리스트가 비어있어요 📝</div>';
+                countEl.textContent = '';
+                return;
+            }
+
+            list.innerHTML = items.map((item, index) => `
+                <li class="list-item ${item.completed ? 'completed' : ''}">
+                    <div class="checkbox ${item.completed ? 'checked' : ''}" onclick="toggleComplete(${index})"></div>
+                    <span class="item-text">${escapeHtml(item.text)}</span>
+                    <button class="delete-btn" onclick="deleteItem(${index})">삭제</button>
+                </li>
+            `).join('');
+
+            const activeCount = items.filter(i => !i.completed).length;
+            const totalCount = items.length;
+            countEl.textContent = `총 ${totalCount}개 중 ${activeCount}개 미완료`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function addItem() {
+            const input = document.getElementById('itemInput');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            items.push({ text, completed: false });
+            saveItems();
+            render();
+            input.value = '';
+            input.focus();
+        }
+
+        function deleteItem(index) {
+            items.splice(index, 1);
+            saveItems();
+            render();
+        }
+
+        function toggleComplete(index) {
+            items[index].completed = !items[index].completed;
+            saveItems();
+            render();
+        }
+
+        document.getElementById('itemInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addItem();
+        });
+
+        render();
+    </script>
+</body>
+</html>
