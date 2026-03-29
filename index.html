@@ -63,6 +63,10 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .add-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -141,24 +145,119 @@
             font-size: 14px;
             margin-top: 15px;
         }
+        .loading {
+            text-align: center;
+            color: #667eea;
+            padding: 20px;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🛒 쇼핑 리스트</h1>
+        <div id="errorContainer"></div>
         <div class="input-group">
             <input type="text" id="itemInput" placeholder="추가할 물품을 입력하세요..." autocomplete="off">
-            <button class="add-btn" onclick="addItem()">추가</button>
+            <button class="add-btn" onclick="addItem()" id="addBtn">추가</button>
         </div>
         <ul class="list" id="shoppingList"></ul>
         <div class="item-count" id="itemCount"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        let items = JSON.parse(localStorage.getItem('shoppingList')) || [];
+        // Supabase 설정
+        const SUPABASE_URL = 'https://roedvtugpyfgjtzpxbck.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZWR2dHVncHlmZ2p0enB4YmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxMTM4MjQsImV4cCI6MjA0ODY3MTQyNH0.2vEqkdIJTDDPsXCQCepixLK8xXd0L-NpEIqCMqHNZpY';
 
-        function saveItems() {
-            localStorage.setItem('shoppingList', JSON.stringify(items));
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let items = [];
+
+        async function loadItems() {
+            try {
+                const { data, error } = await supabase
+                    .from('shopping_items')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+                items = data || [];
+                render();
+            } catch (err) {
+                showError('데이터를 불러오는데 실패했습니다: ' + err.message);
+                console.error('Error loading items:', err);
+            }
+        }
+
+        async function saveItem(text) {
+            try {
+                const { data, error } = await supabase
+                    .from('shopping_items')
+                    .insert([{ text, completed: false }])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+                items.push(data);
+                render();
+                return true;
+            } catch (err) {
+                showError('추가에 실패했습니다: ' + err.message);
+                console.error('Error adding item:', err);
+                return false;
+            }
+        }
+
+        async function deleteItem(id) {
+            try {
+                const { error } = await supabase
+                    .from('shopping_items')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+                items = items.filter(item => item.id !== id);
+                render();
+            } catch (err) {
+                showError('삭제에 실패했습니다: ' + err.message);
+                console.error('Error deleting item:', err);
+            }
+        }
+
+        async function toggleComplete(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            try {
+                const { error } = await supabase
+                    .from('shopping_items')
+                    .update({ completed: !item.completed })
+                    .eq('id', id);
+
+                if (error) throw error;
+                item.completed = !item.completed;
+                render();
+            } catch (err) {
+                showError('업데이트에 실패했습니다: ' + err.message);
+                console.error('Error updating item:', err);
+            }
+        }
+
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
         }
 
         function render() {
@@ -171,11 +270,11 @@
                 return;
             }
 
-            list.innerHTML = items.map((item, index) => `
-                <li class="list-item ${item.completed ? 'completed' : ''}">
-                    <div class="checkbox ${item.completed ? 'checked' : ''}" onclick="toggleComplete(${index})"></div>
+            list.innerHTML = items.map((item) => `
+                <li class="list-item ${item.completed ? 'completed' : ''}" data-id="${item.id}">
+                    <div class="checkbox ${item.completed ? 'checked' : ''}" onclick="toggleComplete(${item.id})"></div>
                     <span class="item-text">${escapeHtml(item.text)}</span>
-                    <button class="delete-btn" onclick="deleteItem(${index})">삭제</button>
+                    <button class="delete-btn" onclick="deleteItem(${item.id})">삭제</button>
                 </li>
             `).join('');
 
@@ -190,36 +289,29 @@
             return div.innerHTML;
         }
 
-        function addItem() {
+        async function addItem() {
             const input = document.getElementById('itemInput');
+            const btn = document.getElementById('addBtn');
             const text = input.value.trim();
 
             if (!text) return;
 
-            items.push({ text, completed: false });
-            saveItems();
-            render();
-            input.value = '';
-            input.focus();
-        }
+            btn.disabled = true;
+            const success = await saveItem(text);
+            btn.disabled = false;
 
-        function deleteItem(index) {
-            items.splice(index, 1);
-            saveItems();
-            render();
-        }
-
-        function toggleComplete(index) {
-            items[index].completed = !items[index].completed;
-            saveItems();
-            render();
+            if (success) {
+                input.value = '';
+                input.focus();
+            }
         }
 
         document.getElementById('itemInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addItem();
         });
 
-        render();
+        // 초기 로딩
+        loadItems();
     </script>
 </body>
 </html>
