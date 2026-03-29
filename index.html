@@ -172,13 +172,15 @@
         <div class="item-count" id="itemCount"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
+    <script type="module">
+        // Supabase ES Module import
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
         // Supabase 설정
         const SUPABASE_URL = 'https://roedvtugpyfgjtzpxbck.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZWR2dHVncHlmZ2p0enB4YmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxMTM4MjQsImV4cCI6MjA0ODY3MTQyNH0.2vEqkdIJTDDPsXCQCepixLK8xXd0L-NpEIqCMqHNZpY';
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let items = [];
 
