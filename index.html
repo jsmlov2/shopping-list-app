@@ -166,22 +166,19 @@
         <div id="errorContainer"></div>
         <div class="input-group">
             <input type="text" id="itemInput" placeholder="추가할 물품을 입력하세요..." autocomplete="off">
-            <button class="add-btn" onclick="addItem()" id="addBtn">추가</button>
+            <button class="add-btn" id="addBtn">추가</button>
         </div>
         <ul class="list" id="shoppingList"></ul>
         <div class="item-count" id="itemCount"></div>
     </div>
 
     <script type="module">
-        // Supabase ES Module import
         import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-        // Supabase 설정
         const SUPABASE_URL = 'https://roedvtugpyfgjtzpxbck.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZWR2dHVncHlmZ2p0enB4YmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3Mjc1NDAsImV4cCI6MjA5MDMwMzU0MH0.Lm-ToEec9appEo4V3fommL1-cYFfibWq8yAn5H0zMeg';
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
         let items = [];
 
         async function loadItems() {
@@ -262,6 +259,12 @@
             }, 5000);
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         function render() {
             const list = document.getElementById('shoppingList');
             const countEl = document.getElementById('itemCount');
@@ -274,21 +277,34 @@
 
             list.innerHTML = items.map((item) => `
                 <li class="list-item ${item.completed ? 'completed' : ''}" data-id="${item.id}">
-                    <div class="checkbox ${item.completed ? 'checked' : ''}" onclick="toggleComplete(${item.id})"></div>
+                    <div class="checkbox ${item.completed ? 'checked' : ''}" data-action="toggle" data-id="${item.id}"></div>
                     <span class="item-text">${escapeHtml(item.text)}</span>
-                    <button class="delete-btn" onclick="deleteItem(${item.id})">삭제</button>
+                    <button class="delete-btn" data-action="delete" data-id="${item.id}">삭제</button>
                 </li>
             `).join('');
 
             const activeCount = items.filter(i => !i.completed).length;
             const totalCount = items.length;
             countEl.textContent = `총 ${totalCount}개 중 ${activeCount}개 미완료`;
+
+            // 이벤트 리스너 다시 연결
+            attachEventListeners();
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        function attachEventListeners() {
+            document.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-id');
+                    deleteItem(id);
+                });
+            });
+
+            document.querySelectorAll('[data-action="toggle"]').forEach(box => {
+                box.addEventListener('click', () => {
+                    const id = box.getAttribute('data-id');
+                    toggleComplete(id);
+                });
+            });
         }
 
         async function addItem() {
@@ -308,6 +324,8 @@
             }
         }
 
+        // 초기 이벤트 리스너 설정
+        document.getElementById('addBtn').addEventListener('click', addItem);
         document.getElementById('itemInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addItem();
         });
